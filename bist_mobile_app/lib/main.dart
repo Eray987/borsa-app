@@ -25,6 +25,175 @@ class BistMobileApp extends StatelessWidget {
   }
 }
 
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
+  @override
+  State<RegisterScreen> createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
+
+  bool isLoading = false;
+
+  Future<void> register() async {
+    final email = emailController.text.trim();
+    final password = passwordController.text.trim();
+    final confirmPassword = confirmPasswordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Lütfen tüm alanları doldurun.')),
+      );
+      return;
+    }
+
+    if (password != confirmPassword) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Şifreler eşleşmiyor.')));
+      return;
+    }
+
+    if (password.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Şifre en az 6 karakter olmalı.')),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    try {
+      final url = Uri.parse('$baseUrl/auth/register');
+
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'password': password}),
+      );
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final token = data['access_token'] ?? '';
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Kayıt başarılı! Giriş yapabilirsiniz.'),
+          ),
+        );
+
+        Navigator.pop(context);
+      } else {
+        final errorData = jsonDecode(response.body);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorData['detail'] ?? 'Kayıt başarısız.')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Bir hata oluştu: $e')));
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    emailController.dispose();
+    passwordController.dispose();
+    confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Kayıt Ol'), centerTitle: true),
+      body: Center(
+        child: SizedBox(
+          width: 400,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.person_add, size: 72),
+                const SizedBox(height: 16),
+                const Text(
+                  'Yeni Hesap Oluştur',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 32),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'E-posta',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Şifre',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Şifre Tekrar',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: isLoading ? null : register,
+                    child: isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Kayıt Ol'),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                  },
+                  child: const Text('Zaten hesabın var mı? Giriş yap'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -33,10 +202,12 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final TextEditingController emailController =
-      TextEditingController(text: 'user@example.com');
-  final TextEditingController passwordController =
-      TextEditingController(text: '123456');
+  final TextEditingController emailController = TextEditingController(
+    text: 'user@example.com',
+  );
+  final TextEditingController passwordController = TextEditingController(
+    text: '123456',
+  );
 
   bool isLoading = false;
 
@@ -46,9 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lütfen e-posta ve şifre girin.'),
-        ),
+        const SnackBar(content: Text('Lütfen e-posta ve şifre girin.')),
       );
       return;
     }
@@ -62,13 +231,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final response = await http.post(
         url,
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: {
-          'username': email,
-          'password': password,
-        },
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: {'username': email, 'password': password},
       );
 
       if (!mounted) return;
@@ -79,11 +243,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
         debugPrint('TOKEN: $token');
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Giriş başarılı'),
-          ),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Giriş başarılı')));
 
         Navigator.pushReplacement(
           context,
@@ -105,11 +267,9 @@ class _LoginScreenState extends State<LoginScreen> {
       debugPrint('Login error: $e');
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Bir hata oluştu: $e'),
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Bir hata oluştu: $e')));
     } finally {
       if (!mounted) return;
       setState(() {
@@ -128,10 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Giriş Yap'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('Giriş Yap'), centerTitle: true),
       body: Center(
         child: SizedBox(
           width: 400,
@@ -144,10 +301,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
                 const Text(
                   'BIST Mobile App',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 32),
                 TextField(
@@ -182,7 +336,14 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 12),
                 TextButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RegisterScreen(),
+                      ),
+                    );
+                  },
                   child: const Text('Hesabın yok mu? Kayıt ol'),
                 ),
               ],
@@ -207,6 +368,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   bool isLoading = true;
   Map<String, dynamic>? summaryData;
   String? errorMessage;
+  int _currentIndex = 0;
 
   @override
   void initState() {
@@ -269,11 +431,34 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     return [];
   }
 
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Çıkış Yap'),
+        content: const Text('Çıkış yapmak istediğinize emin misiniz?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('İptal'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const BistMobileApp()),
+              );
+            },
+            child: const Text('Çıkış Yap'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final positions =
-        summaryData != null ? extractPositions(summaryData!) : <dynamic>[];
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Portföyüm'),
@@ -285,130 +470,252 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : errorMessage != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Text(
-                      errorMessage!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Colors.red, fontSize: 16),
-                    ),
-                  ),
-                )
-              : summaryData == null
-                  ? const Center(child: Text('Portföy verisi bulunamadı.'))
-                  : RefreshIndicator(
-                      onRefresh: fetchPortfolioSummary,
-                      child: ListView(
-                        padding: const EdgeInsets.all(16),
-                        children: [
-                          _buildInfoCard(
-                            'Toplam Portföy Değeri',
-                            formatValue(
-                              summaryData!['total_value'] ??
-                                  summaryData!['portfolio_value'] ??
-                                  summaryData!['totalPortfolioValue'],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildInfoCard(
-                            'Nakit',
-                            formatValue(
-                              summaryData!['cash'] ??
-                                  summaryData!['cash_balance'] ??
-                                  summaryData!['available_cash'],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _buildInfoCard(
-                            'Kar / Zarar',
-                            formatValue(
-                              summaryData!['profit_loss'] ??
-                                  summaryData!['pnl'] ??
-                                  summaryData!['total_profit_loss'],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          const Text(
-                            'Pozisyonlar',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          if (positions.isEmpty)
-                            const Card(
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Text('Henüz pozisyon bulunmuyor.'),
-                              ),
-                            )
-                          else
-                            ...positions.map((position) {
-                              final symbol = position['symbol'] ??
-                                  position['stock_code'] ??
-                                  position['ticker'] ??
-                                  'Bilinmiyor';
-
-                              final quantity = position['quantity'] ??
-                                  position['lot'] ??
-                                  position['units'] ??
-                                  0;
-
-                              final avgPrice = position['avg_price'] ??
-                                  position['average_price'] ??
-                                  position['buy_price'] ??
-                                  0;
-
-                              final currentPrice = position['current_price'] ??
-                                  position['price'] ??
-                                  position['last_price'] ??
-                                  0;
-
-                              final pnl = position['profit_loss'] ??
-                                  position['pnl'] ??
-                                  position['gain_loss'] ??
-                                  0;
-
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        symbol.toString(),
-                                        style: const TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text('Adet: $quantity'),
-                                      Text(
-                                        'Ortalama Fiyat: ${formatValue(avgPrice)}',
-                                      ),
-                                      Text(
-                                        'Güncel Fiyat: ${formatValue(currentPrice)}',
-                                      ),
-                                      Text(
-                                        'Kar / Zarar: ${formatValue(pnl)}',
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                        ],
-                      ),
-                    ),
+      body: _buildBody(),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.account_balance_wallet_outlined),
+            selectedIcon: Icon(Icons.account_balance_wallet),
+            label: 'Portföy',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.show_chart_outlined),
+            selectedIcon: Icon(Icons.show_chart),
+            label: 'Piyasa',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.swap_horiz_outlined),
+            selectedIcon: Icon(Icons.swap_horiz),
+            label: 'İşlem',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profil',
+          ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildBody() {
+    if (_currentIndex == 0) {
+      return _buildPortfolioBody();
+    } else if (_currentIndex == 1) {
+      return const Center(child: Text('Piyasa ekranı yakında!'));
+    } else if (_currentIndex == 2) {
+      return const Center(child: Text('İşlem ekranı yakında!'));
+    } else if (_currentIndex == 3) {
+      return _buildProfileBody();
+    }
+    return const SizedBox();
+  }
+
+  Widget _buildProfileBody() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Profil'),
+        centerTitle: true,
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.settings),
+            onSelected: (value) {
+              if (value == 'logout') {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Çıkış Yap'),
+                    content: const Text(
+                      'Çıkış yapmak istediğinize emin misiniz?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text('İptal'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const BistMobileApp(),
+                            ),
+                          );
+                        },
+                        child: const Text('Çıkış Yap'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Çıkış Yap', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const CircleAvatar(
+                radius: 50,
+                child: Icon(Icons.person, size: 50),
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Kullanıcı Profili',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPortfolioBody() {
+    final positions = summaryData != null
+        ? extractPositions(summaryData!)
+        : <dynamic>[];
+
+    return isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : errorMessage != null
+        ? Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                errorMessage!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontSize: 16),
+              ),
+            ),
+          )
+        : summaryData == null
+        ? const Center(child: Text('Portföy verisi bulunamadı.'))
+        : RefreshIndicator(
+            onRefresh: fetchPortfolioSummary,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                _buildInfoCard(
+                  'Toplam Portföy Değeri',
+                  formatValue(
+                    summaryData!['total_value'] ??
+                        summaryData!['portfolio_value'] ??
+                        summaryData!['totalPortfolioValue'],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildInfoCard(
+                  'Nakit',
+                  formatValue(
+                    summaryData!['cash'] ??
+                        summaryData!['cash_balance'] ??
+                        summaryData!['available_cash'],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildInfoCard(
+                  'Kar / Zarar',
+                  formatValue(
+                    summaryData!['profit_loss'] ??
+                        summaryData!['pnl'] ??
+                        summaryData!['total_profit_loss'],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Pozisyonlar',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 12),
+                if (positions.isEmpty)
+                  const Card(
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('Henüz pozisyon bulunmuyor.'),
+                    ),
+                  )
+                else
+                  ...positions.map((position) {
+                    final symbol =
+                        position['symbol'] ??
+                        position['stock_code'] ??
+                        position['ticker'] ??
+                        'Bilinmiyor';
+
+                    final quantity =
+                        position['quantity'] ??
+                        position['lot'] ??
+                        position['units'] ??
+                        0;
+
+                    final avgPrice =
+                        position['avg_price'] ??
+                        position['average_price'] ??
+                        position['buy_price'] ??
+                        0;
+
+                    final currentPrice =
+                        position['current_price'] ??
+                        position['price'] ??
+                        position['last_price'] ??
+                        0;
+
+                    final pnl =
+                        position['profit_loss'] ??
+                        position['pnl'] ??
+                        position['gain_loss'] ??
+                        0;
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              symbol.toString(),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text('Adet: $quantity'),
+                            Text('Ortalama Fiyat: ${formatValue(avgPrice)}'),
+                            Text('Güncel Fiyat: ${formatValue(currentPrice)}'),
+                            Text('Kar / Zarar: ${formatValue(pnl)}'),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+              ],
+            ),
+          );
   }
 
   Widget _buildInfoCard(String title, String value) {
@@ -418,16 +725,10 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16),
-            ),
+            Text(title, style: const TextStyle(fontSize: 16)),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           ],
         ),
