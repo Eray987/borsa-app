@@ -126,118 +126,102 @@ class _MarketScreenState extends State<MarketScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('BIST30 Piyasa'),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            onPressed: () {
-              fetchMarketData();
-              fetchFavorites();
-            },
-            icon: const Icon(Icons.refresh),
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            errorMessage!,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.red),
           ),
-        ],
-      ),
-      body: isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : errorMessage != null
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        await fetchMarketData();
+        await fetchFavorites();
+      },
+      child: ListView.builder(
+        padding: const EdgeInsets.all(8),
+        itemCount: stocks.length,
+        itemBuilder: (context, index) {
+          final stock = stocks[index];
+          final symbol = stock['symbol'] ?? '';
+          final price = stock['price'] ?? 0.0;
+          final change = stock['change_percent'] ?? 0.0;
+          final isPositive = change >= 0;
+          final isFavorite = favoriteSymbols.contains(symbol);
+
+          return Card(
+            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            child: ListTile(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        StockDetailScreen(symbol: symbol, token: widget.token),
+                  ),
+                );
+              },
+              title: Text(
+                symbol,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
                 ),
               ),
-            )
-          : RefreshIndicator(
-              onRefresh: () async {
-                await fetchMarketData();
-                await fetchFavorites();
-              },
-              child: ListView.builder(
-                padding: const EdgeInsets.all(8),
-                itemCount: stocks.length,
-                itemBuilder: (context, index) {
-                  final stock = stocks[index];
-                  final symbol = stock['symbol'] ?? '';
-                  final price = stock['price'] ?? 0.0;
-                  final change = stock['change_percent'] ?? 0.0;
-                  final isPositive = change >= 0;
-                  final isFavorite = favoriteSymbols.contains(symbol);
-
-                  return Card(
-                    margin: const EdgeInsets.symmetric(
-                      vertical: 4,
-                      horizontal: 8,
-                    ),
-                    child: ListTile(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => StockDetailScreen(
-                              symbol: symbol,
-                              token: widget.token,
-                            ),
-                          ),
-                        );
-                      },
-                      title: Text(
-                        symbol,
+              subtitle: Text(
+                stock['name'] ?? '',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '₺${price.toStringAsFixed(2)}',
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 16,
                         ),
                       ),
-                      subtitle: Text(
-                        stock['name'] ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      Text(
+                        '${isPositive ? '+' : ''}${change.toStringAsFixed(2)}%',
+                        style: TextStyle(
+                          color: isPositive ? Colors.green : Colors.red,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                '₺${price.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                ),
-                              ),
-                              Text(
-                                '${isPositive ? '+' : ''}${change.toStringAsFixed(2)}%',
-                                style: TextStyle(
-                                  color: isPositive ? Colors.green : Colors.red,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            icon: Icon(
-                              isFavorite ? Icons.star : Icons.star_border,
-                              color: Colors.amber,
-                            ),
-                            onPressed: () => toggleFavorite(symbol),
-                          ),
-                        ],
-                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: Icon(
+                      isFavorite ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
                     ),
-                  );
-                },
+                    onPressed: () => toggleFavorite(symbol),
+                  ),
+                ],
               ),
             ),
+          );
+        },
+      ),
     );
   }
 }
