@@ -1,10 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
 import yfinance as yf
-from typing import List
-from ..deps import get_db, get_current_user
-from .. import models, schemas
 
 router = APIRouter(prefix="/market", tags=["market"])
 
@@ -17,17 +12,8 @@ BIST30_SYMBOLS = [
     "VAKBN.IS", "ENKAI.IS", "ANHOL.IS", " Kardemir.IS", "CLTLY.IS"
 ]
 
-CACHE_DURATION_MINUTES = 5
-
 @router.get("/bist30")
-def get_bist30(db: Session = Depends(get_db)):
-    cache = db.query(models.MarketCache).all()
-    
-    if cache:
-        cache_age = datetime.utcnow() - cache[0].updated_at
-        if cache_age < timedelta(minutes=CACHE_DURATION_MINUTES):
-            return [{"symbol": c.symbol, "name": c.name, "price": c.price, "change_percent": c.change_percent} for c in cache]
-    
+def get_bist30():
     stocks_data = []
     for symbol in BIST30_SYMBOLS:
         try:
@@ -45,30 +31,15 @@ def get_bist30(db: Session = Depends(get_db)):
                     "price": price,
                     "change_percent": change or 0.0
                 })
-                
-                existing = db.query(models.MarketCache).filter(models.MarketCache.symbol == symbol).first()
-                if existing:
-                    existing.price = price
-                    existing.change_percent = change or 0.0
-                    existing.updated_at = datetime.utcnow()
-                else:
-                    cache_entry = models.MarketCache(
-                        symbol=symbol,
-                        name=name,
-                        price=price,
-                        change_percent=change or 0.0
-                    )
-                    db.add(cache_entry)
         except Exception as e:
             print(f"Error fetching {symbol}: {e}")
             continue
     
-    db.commit()
     return stocks_data
 
 
 @router.get("/stock/{symbol}")
-def get_stock_detail(symbol: str, period: str = "1mo", db: Session = Depends(get_db)):
+def get_stock_detail(symbol: str, period: str = "1mo"):
     yahoo_symbol = f"{symbol}.IS"
     
     try:
