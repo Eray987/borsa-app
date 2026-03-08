@@ -265,7 +265,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     } else if (_currentIndex == 2) {
       return const Center(child: Text('İşlem ekranı yakında!'));
     } else if (_currentIndex == 3) {
-      return NewsScreen(token: widget.token);
+      return const Center(child: Text('Haberler yakında!'));
     } else if (_currentIndex == 4) {
       return _buildProfileBody();
     }
