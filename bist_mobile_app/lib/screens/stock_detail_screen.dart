@@ -29,11 +29,11 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   final Map<String, String> periodMap = {
     '1G': '1d',
     '1A': '1mo',
-    '3A': '3mo',
+    '6A': '6mo',
     '1Y': '1y',
   };
 
-  final List<String> periods = ['1G', '1A', '3A', '1Y'];
+  final List<String> periods = ['1G', '1A', '6A', '1Y'];
 
   @override
   void initState() {
