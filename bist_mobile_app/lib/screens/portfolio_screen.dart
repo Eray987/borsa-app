@@ -5,6 +5,7 @@ import '../constants.dart';
 import '../main.dart';
 import 'stock_detail_screen.dart';
 import 'market_screen.dart';
+import 'news_screen.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final String token;
@@ -264,7 +265,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     } else if (_currentIndex == 2) {
       return const Center(child: Text('İşlem ekranı yakında!'));
     } else if (_currentIndex == 3) {
-      return const Center(child: Text('Haberler yakında!'));
+      return NewsScreen(token: widget.token);
     } else if (_currentIndex == 4) {
       return _buildProfileBody();
     }
