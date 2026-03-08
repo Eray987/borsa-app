@@ -148,6 +148,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     else if (_currentIndex == 2)
       title = 'İşlemler';
     else if (_currentIndex == 3)
+      title = 'Haberler';
+    else if (_currentIndex == 4)
       title = 'Profil';
 
     return Scaffold(
@@ -155,7 +157,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         title: Text(title),
         centerTitle: true,
         actions: [
-          if (_currentIndex == 3)
+          if (_currentIndex == 4)
             PopupMenuButton<String>(
               icon: const Icon(Icons.settings),
               onSelected: (value) {
@@ -240,6 +242,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             label: 'İşlem',
           ),
           NavigationDestination(
+            icon: Icon(Icons.newspaper_outlined),
+            selectedIcon: Icon(Icons.newspaper),
+            label: 'Haberler',
+          ),
+          NavigationDestination(
             icon: Icon(Icons.person_outline),
             selectedIcon: Icon(Icons.person),
             label: 'Profil',
@@ -257,6 +264,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     } else if (_currentIndex == 2) {
       return const Center(child: Text('İşlem ekranı yakında!'));
     } else if (_currentIndex == 3) {
+      return const Center(child: Text('Haberler yakında!'));
+    } else if (_currentIndex == 4) {
       return _buildProfileBody();
     }
     return const SizedBox();
