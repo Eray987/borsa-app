@@ -155,16 +155,64 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         title: Text(title),
         centerTitle: true,
         actions: [
-          IconButton(
-            onPressed: () {
-              if (_currentIndex == 0) {
-                fetchFavorites();
-              } else {
-                fetchPortfolioSummary();
-              }
-            },
-            icon: const Icon(Icons.refresh),
-          ),
+          if (_currentIndex == 3)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.settings),
+              onSelected: (value) {
+                if (value == 'logout') {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Çıkış Yap'),
+                      content: const Text(
+                        'Çıkış yapmak istediğinize emin misiniz?',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('İptal'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const BistMobileApp(),
+                              ),
+                            );
+                          },
+                          child: const Text('Çıkış Yap'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'logout',
+                  child: Row(
+                    children: [
+                      Icon(Icons.logout, color: Colors.red),
+                      SizedBox(width: 8),
+                      Text('Çıkış Yap', style: TextStyle(color: Colors.red)),
+                    ],
+                  ),
+                ),
+              ],
+            )
+          else
+            IconButton(
+              onPressed: () {
+                if (_currentIndex == 0) {
+                  fetchFavorites();
+                } else {
+                  fetchPortfolioSummary();
+                }
+              },
+              icon: const Icon(Icons.refresh),
+            ),
         ],
       ),
       body: _buildBody(),
@@ -294,73 +342,19 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   }
 
   Widget _buildProfileBody() {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profil'),
-        centerTitle: true,
-        actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.settings),
-            onSelected: (value) {
-              if (value == 'logout') {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text('Çıkış Yap'),
-                    content: const Text(
-                      'Çıkış yapmak istediğinize emin misiniz?',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('İptal'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const BistMobileApp(),
-                            ),
-                          );
-                        },
-                        child: const Text('Çıkış Yap'),
-                      ),
-                    ],
-                  ),
-                );
-              }
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, color: Colors.red),
-                    SizedBox(width: 8),
-                    Text('Çıkış Yap', style: TextStyle(color: Colors.red)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      body: const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
-              SizedBox(height: 24),
-              Text(
-                'Kullanıcı Profili',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
+    return const Center(
+      child: Padding(
+        padding: EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
+            SizedBox(height: 24),
+            Text(
+              'Kullanıcı Profili',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
     );
