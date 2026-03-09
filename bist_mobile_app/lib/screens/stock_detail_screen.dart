@@ -25,6 +25,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   String? errorMessage;
   String selectedPeriod = '1mo';
   List<double> prices = [];
+  List<dynamic> stockNews = [];
+  bool newsLoading = true;
 
   final Map<String, String> periodMap = {
     '1G': '1d',
@@ -39,6 +41,28 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   void initState() {
     super.initState();
     fetchStockData();
+    fetchStockNews();
+  }
+
+  Future<void> fetchStockNews() async {
+    setState(() => newsLoading = true);
+    try {
+      final url = Uri.parse('$baseUrl/news/stock/${widget.symbol}');
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+      if (response.statusCode == 200) {
+        setState(() {
+          stockNews = jsonDecode(response.body);
+          newsLoading = false;
+        });
+      } else {
+        setState(() => newsLoading = false);
+      }
+    } catch (e) {
+      setState(() => newsLoading = false);
+    }
   }
 
   Future<void> fetchStockData() async {
@@ -102,9 +126,155 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                   _buildChart(),
                   const SizedBox(height: 24),
                   _buildStockInfo(),
+                  const SizedBox(height: 24),
+                  _buildNewsSection(),
+                  const SizedBox(height: 16),
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildNewsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Haberler & Fiyat Etkisi',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        if (newsLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (stockNews.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.newspaper_outlined, color: Colors.grey[400]),
+                  const SizedBox(width: 12),
+                  const Text('Bu hisse için haber bulunamadı.',
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          )
+        else
+          ...stockNews.map((article) {
+            final title = article['title'] ?? '';
+            final source = article['source'] ?? '';
+            final publishedAt = (article['published_at'] ?? '').toString().substring(0, 10);
+            final url = article['url'] ?? '';
+            final changePct = article['price_change_pct'] as double?;
+            final priceClose = article['price_close'] as double?;
+
+            final hasImpact = changePct != null;
+            final isPositive = hasImpact && changePct! >= 0;
+            final impactColor = hasImpact
+                ? (isPositive ? Colors.green : Colors.red)
+                : Colors.grey;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(12),
+                onTap: () {},
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              title,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          if (hasImpact) ...
+                            [
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: impactColor.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: impactColor.withOpacity(0.4)),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Icon(
+                                      isPositive
+                                          ? Icons.arrow_upward
+                                          : Icons.arrow_downward,
+                                      color: impactColor,
+                                      size: 14,
+                                    ),
+                                    Text(
+                                      '${isPositive ? '+' : ''}${changePct!.toStringAsFixed(2)}%',
+                                      style: TextStyle(
+                                        color: impactColor,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    if (priceClose != null)
+                                      Text(
+                                        '₺${priceClose.toStringAsFixed(1)}',
+                                        style: TextStyle(
+                                          color: impactColor,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(
+                            source,
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey[500]),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('•',
+                              style:
+                                  TextStyle(fontSize: 11, color: Colors.grey[400])),
+                          const SizedBox(width: 8),
+                          Text(
+                            publishedAt,
+                            style: TextStyle(
+                                fontSize: 11, color: Colors.grey[500]),
+                          ),
+                          if (hasImpact) ...
+                            [
+                              const Spacer(),
+                              Text(
+                                'O gün kapanış',
+                                style: TextStyle(
+                                    fontSize: 10, color: Colors.grey[400]),
+                              ),
+                            ],
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+      ],
     );
   }
 
