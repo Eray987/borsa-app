@@ -39,7 +39,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       final url = Uri.parse('$baseUrl/auth/me');
       final response = await http.get(
         url,
-        headers: {'Authorization': 'Bearer \${widget.token}'},
+        headers: {'Authorization': 'Bearer ${widget.token}'},
       );
       if (response.statusCode == 200) {
         setState(() {
@@ -395,7 +395,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     final firstName = userInfo?['first_name'] ?? '';
     final lastName = userInfo?['last_name'] ?? '';
     final email = userInfo?['email'] ?? '';
-    final fullName = '\$firstName \$lastName'.trim();
+    final fullName = '$firstName $lastName'.trim();
 
     return RefreshIndicator(
       onRefresh: fetchUserInfo,
