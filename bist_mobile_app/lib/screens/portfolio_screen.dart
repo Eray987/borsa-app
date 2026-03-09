@@ -23,12 +23,35 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   int _currentIndex = 0;
   List<dynamic> favorites = [];
   bool favoritesLoading = true;
+  Map<String, dynamic>? userInfo;
+  bool userInfoLoading = true;
 
   @override
   void initState() {
     super.initState();
     fetchPortfolioSummary();
     fetchFavorites();
+    fetchUserInfo();
+  }
+
+  Future<void> fetchUserInfo() async {
+    try {
+      final url = Uri.parse('$baseUrl/auth/me');
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer \${widget.token}'},
+      );
+      if (response.statusCode == 200) {
+        setState(() {
+          userInfo = jsonDecode(response.body);
+          userInfoLoading = false;
+        });
+      } else {
+        setState(() => userInfoLoading = false);
+      }
+    } catch (e) {
+      setState(() => userInfoLoading = false);
+    }
   }
 
   Future<void> fetchFavorites() async {
@@ -278,25 +301,38 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     }
 
     if (favorites.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.star_border, size: 64, color: Colors.grey[400]),
-              const SizedBox(height: 16),
-              const Text(
-                'Henüz favori hissen yok',
-                style: TextStyle(fontSize: 18, color: Colors.grey),
+      return RefreshIndicator(
+        onRefresh: () async {
+          await fetchFavorites();
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: 400,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.star_border, size: 64, color: Colors.grey[400]),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Henüz favori hissen yok',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Piyasa sekmesinden hisse ekleyebilirsin',
+                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'Piyasa sekmesinden hisse ekleyebilirsin',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
@@ -352,20 +388,71 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   }
 
   Widget _buildProfileBody() {
-    return const Center(
-      child: Padding(
-        padding: EdgeInsets.all(24),
+    if (userInfoLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final firstName = userInfo?['first_name'] ?? '';
+    final lastName = userInfo?['last_name'] ?? '';
+    final email = userInfo?['email'] ?? '';
+    final fullName = '\$firstName \$lastName'.trim();
+
+    return RefreshIndicator(
+      onRefresh: fetchUserInfo,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(radius: 50, child: Icon(Icons.person, size: 50)),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
+            CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.green.shade100,
+              child: Text(
+                firstName.isNotEmpty ? firstName[0].toUpperCase() : '?',
+                style: const TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.green),
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
-              'Kullanıcı Profili',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              fullName.isNotEmpty ? fullName : 'Kullanıcı',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 32),
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Column(
+                children: [
+                  _buildProfileTile(Icons.person_outline, 'İsim', firstName.isNotEmpty ? firstName : '-'),
+                  const Divider(height: 1),
+                  _buildProfileTile(Icons.badge_outlined, 'Soyisim', lastName.isNotEmpty ? lastName : '-'),
+                  const Divider(height: 1),
+                  _buildProfileTile(Icons.email_outlined, 'E-posta', email.isNotEmpty ? email : '-'),
+                ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildProfileTile(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.green, size: 24),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+              const SizedBox(height: 2),
+              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+            ],
+          ),
+        ],
       ),
     );
   }

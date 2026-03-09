@@ -131,14 +131,28 @@ class _MarketScreenState extends State<MarketScreen> {
     }
 
     if (errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            errorMessage!,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.red),
-          ),
+      return RefreshIndicator(
+        onRefresh: () async {
+          await fetchMarketData();
+          await fetchFavorites();
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: 400,
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
@@ -149,6 +163,7 @@ class _MarketScreenState extends State<MarketScreen> {
         await fetchFavorites();
       },
       child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(8),
         itemCount: stocks.length,
         itemBuilder: (context, index) {

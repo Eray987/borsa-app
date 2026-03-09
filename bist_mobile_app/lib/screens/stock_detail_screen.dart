@@ -114,22 +114,29 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       appBar: AppBar(title: Text(widget.symbol), centerTitle: true),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildPriceCard(),
-                  const SizedBox(height: 24),
-                  _buildPeriodSelector(),
-                  const SizedBox(height: 16),
-                  _buildChart(),
-                  const SizedBox(height: 24),
-                  _buildStockInfo(),
-                  const SizedBox(height: 24),
-                  _buildNewsSection(),
-                  const SizedBox(height: 16),
-                ],
+          : RefreshIndicator(
+              onRefresh: () async {
+                await fetchStockData();
+                await fetchStockNews();
+              },
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildPriceCard(),
+                    const SizedBox(height: 24),
+                    _buildPeriodSelector(),
+                    const SizedBox(height: 16),
+                    _buildChart(),
+                    const SizedBox(height: 24),
+                    _buildStockInfo(),
+                    const SizedBox(height: 24),
+                    _buildNewsSection(),
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
     );

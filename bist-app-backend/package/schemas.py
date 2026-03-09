@@ -1,11 +1,22 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 
 class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
+    first_name: str = Field(min_length=1)
+    last_name: str = Field(min_length=1)
+
+
+class UserOut(BaseModel):
+    email: EmailStr
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
 class TokenResponse(BaseModel):

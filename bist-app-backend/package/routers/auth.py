@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
-from ..deps import get_db
+from ..deps import get_db, get_current_user
 from .. import models, schemas
 from ..auth import hash_password, verify_password, create_access_token
 
@@ -14,7 +14,12 @@ def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    user = models.User(email=payload.email, password_hash=hash_password(payload.password))
+    user = models.User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        first_name=payload.first_name,
+        last_name=payload.last_name,
+    )
     db.add(user)
     db.commit()
     token = create_access_token(subject=user.email)
@@ -28,3 +33,8 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 
     token = create_access_token(subject=user.email)
     return {"access_token": token, "token_type": "bearer"}
+
+
+@router.get("/me", response_model=schemas.UserOut)
+def get_me(current_user: models.User = Depends(get_current_user)):
+    return current_user
