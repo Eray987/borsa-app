@@ -241,7 +241,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             ),
         ],
       ),
-      body: _buildBody(),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: [
+          _buildFavoritesBody(),
+          MarketScreen(token: widget.token),
+          const Center(child: Text('İşlem ekranı yakında!')),
+          NewsScreen(token: widget.token),
+          _buildProfileBody(),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
@@ -278,21 +287,6 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildBody() {
-    if (_currentIndex == 0) {
-      return _buildFavoritesBody();
-    } else if (_currentIndex == 1) {
-      return MarketScreen(token: widget.token);
-    } else if (_currentIndex == 2) {
-      return const Center(child: Text('İşlem ekranı yakında!'));
-    } else if (_currentIndex == 3) {
-      return const Center(child: Text('Haberler yakında!'));
-    } else if (_currentIndex == 4) {
-      return _buildProfileBody();
-    }
-    return const SizedBox();
   }
 
   Widget _buildFavoritesBody() {
