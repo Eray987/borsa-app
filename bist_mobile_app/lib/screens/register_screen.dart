@@ -20,6 +20,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool isLoading = false;
 
+  String _extractErrorMessage(http.Response response, String fallback) {
+    final body = response.body.trim();
+    if (body.isEmpty) return fallback;
+
+    try {
+      final parsed = jsonDecode(body);
+      if (parsed is Map<String, dynamic>) {
+        final detail = parsed['detail'];
+        if (detail is String && detail.isNotEmpty) {
+          return detail;
+        }
+      }
+    } catch (_) {
+      // Backend can return plain-text errors in some failure cases.
+    }
+
+    return body;
+  }
+
   Future<void> register() async {
     final firstName = firstNameController.text.trim();
     final lastName = lastNameController.text.trim();
@@ -77,9 +96,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         Navigator.pop(context);
       } else {
-        final errorData = jsonDecode(response.body);
+        final errorMessage = _extractErrorMessage(response, 'Kayıt başarısız.');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorData['detail'] ?? 'Kayıt başarısız.')),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     } catch (e) {
@@ -88,10 +107,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Bir hata oluştu: $e')));
     } finally {
-      if (!mounted) return;
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -109,13 +129,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Kayıt Ol'), centerTitle: true),
-      body: Center(
-        child: SizedBox(
-          width: 400,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+      body: SingleChildScrollView(
+        child: Center(
+          child: SizedBox(
+            width: 400,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(Icons.person_add, size: 72),
                 const SizedBox(height: 16),
@@ -193,6 +214,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
         ),
+      ),
       ),
     );
   }

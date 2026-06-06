@@ -6,6 +6,7 @@ import '../main.dart';
 import 'stock_detail_screen.dart';
 import 'market_screen.dart';
 import 'news_screen.dart';
+import 'transactions_screen.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final String token;
@@ -25,6 +26,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   bool favoritesLoading = true;
   Map<String, dynamic>? userInfo;
   bool userInfoLoading = true;
+  final GlobalKey<TransactionsScreenState> _transactionsKey = GlobalKey<TransactionsScreenState>();
 
   @override
   void initState() {
@@ -241,12 +243,20 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             ),
         ],
       ),
+      floatingActionButton: _currentIndex == 2
+          ? FloatingActionButton(
+              onPressed: () {
+                _transactionsKey.currentState?.showAddDialog();
+              },
+              child: const Icon(Icons.add),
+            )
+          : null,
       body: IndexedStack(
         index: _currentIndex,
         children: [
           _buildFavoritesBody(),
           MarketScreen(token: widget.token),
-          const Center(child: Text('İşlem ekranı yakında!')),
+          TransactionsScreen(key: _transactionsKey, token: widget.token),
           NewsScreen(token: widget.token),
           _buildProfileBody(),
         ],

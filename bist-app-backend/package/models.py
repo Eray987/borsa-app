@@ -1,4 +1,4 @@
-from sqlalchemy import String, Integer, Float, DateTime, ForeignKey
+from sqlalchemy import String, Integer, Float, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from datetime import datetime
 from .db import Base
@@ -13,6 +13,7 @@ class User(Base):
 
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="user")
     favorites: Mapped[list["Favorite"]] = relationship(back_populates="user")
+    alarms: Mapped[list["Alarm"]] = relationship(back_populates="user")
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -34,6 +35,19 @@ class Favorite(Base):
     added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     user: Mapped["User"] = relationship(back_populates="favorites")
+
+class Alarm(Base):
+    __tablename__ = "alarms"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    symbol: Mapped[str] = mapped_column(String, index=True)
+    lower_bound: Mapped[float] = mapped_column(Float, nullable=True)
+    upper_bound: Mapped[float] = mapped_column(Float, nullable=True)
+    is_triggered: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    triggered_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped["User"] = relationship(back_populates="alarms")
 
 class MarketCache(Base):
     __tablename__ = "market_cache"

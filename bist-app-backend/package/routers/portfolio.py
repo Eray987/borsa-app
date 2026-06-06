@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from ..deps import get_db, get_current_user
@@ -100,3 +100,20 @@ def get_portfolio_summary(
             )
 
     return {"positions": positions}
+
+
+@router.delete("/transactions/{transaction_id}")
+def delete_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(get_current_user),
+):
+    tx = db.query(models.Transaction).filter(
+        models.Transaction.id == transaction_id,
+        models.Transaction.user_id == user.id,
+    ).first()
+    if not tx:
+        raise HTTPException(status_code=404, detail="İşlem bulunamadı.")
+    db.delete(tx)
+    db.commit()
+    return {"ok": True}

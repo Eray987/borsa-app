@@ -22,11 +22,18 @@ class StockDetailScreen extends StatefulWidget {
 class _StockDetailScreenState extends State<StockDetailScreen> {
   bool isLoading = true;
   Map<String, dynamic>? stockData;
+  Map<String, dynamic>? analysisData;
   String? errorMessage;
+  String? analysisError;
   String selectedPeriod = '1mo';
   List<double> prices = [];
   List<dynamic> stockNews = [];
   bool newsLoading = true;
+  bool analysisLoading = true;
+
+  // Alarm
+  List<dynamic> alarms = [];
+  bool alarmsLoading = true;
 
   final Map<String, String> periodMap = {
     '1G': '1d',
@@ -42,6 +49,124 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     super.initState();
     fetchStockData();
     fetchStockNews();
+    fetchAnalysis();
+    fetchAlarms();
+  }
+
+  Future<void> fetchAlarms() async {
+    setState(() => alarmsLoading = true);
+    try {
+      final url = Uri.parse('$baseUrl/alarms/${widget.symbol}');
+      final r = await http.get(url, headers: {'Authorization': 'Bearer ${widget.token}'});
+      if (!mounted) return;
+      if (r.statusCode == 200) {
+        setState(() { alarms = jsonDecode(r.body); alarmsLoading = false; });
+      } else {
+        setState(() => alarmsLoading = false);
+      }
+    } catch (_) {
+      if (mounted) setState(() => alarmsLoading = false);
+    }
+  }
+
+  Future<void> deleteAlarm(int alarmId) async {
+    try {
+      await http.delete(
+        Uri.parse('$baseUrl/alarms/$alarmId'),
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+      if (!mounted) return;
+      fetchAlarms();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+    }
+  }
+
+  void _showAlarmDialog() {
+    final lowerCtrl = TextEditingController();
+    final upperCtrl = TextEditingController();
+    final currentPrice = prices.isNotEmpty ? prices.last : 0.0;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('${widget.symbol} Fiyat Alarmı'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Güncel fiyat: ₺${currentPrice.toStringAsFixed(2)}',
+              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: lowerCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Alt Sınır (₺)',
+                hintText: 'Fiyat bu değerin altına düşerse',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.arrow_downward, color: Colors.red),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: upperCtrl,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Üst Sınır (₺)',
+                hintText: 'Fiyat bu değerin üstüne çıkarsa',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.arrow_upward, color: Colors.green),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('İptal')),
+          ElevatedButton(
+            onPressed: () async {
+              final lower = double.tryParse(lowerCtrl.text.replaceAll(',', '.'));
+              final upper = double.tryParse(upperCtrl.text.replaceAll(',', '.'));
+              if (lower == null && upper == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('En az bir sınır giriniz.')),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              try {
+                final r = await http.post(
+                  Uri.parse('$baseUrl/alarms/'),
+                  headers: {
+                    'Authorization': 'Bearer ${widget.token}',
+                    'Content-Type': 'application/json',
+                  },
+                  body: jsonEncode({
+                    'symbol': widget.symbol,
+                    if (lower != null) 'lower_bound': lower,
+                    if (upper != null) 'upper_bound': upper,
+                  }),
+                );
+                if (!mounted) return;
+                if (r.statusCode == 200) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Alarm oluşturuldu ✓')),
+                  );
+                  fetchAlarms();
+                }
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Hata: $e')));
+              }
+            },
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> fetchStockNews() async {
@@ -62,6 +187,36 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       }
     } catch (e) {
       setState(() => newsLoading = false);
+    }
+  }
+
+  Future<void> fetchAnalysis() async {
+    setState(() {
+      analysisLoading = true;
+      analysisError = null;
+    });
+
+    try {
+      final url = Uri.parse('$baseUrl/analyze/${widget.symbol}');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        setState(() {
+          analysisData = jsonDecode(response.body);
+          analysisLoading = false;
+        });
+      } else {
+        setState(() {
+          analysisError = 'Analiz alınamadı';
+          analysisLoading = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        analysisError = 'Analiz alınamadı: $e';
+        analysisLoading = false;
+      });
     }
   }
 
@@ -118,6 +273,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               onRefresh: () async {
                 await fetchStockData();
                 await fetchStockNews();
+                await fetchAnalysis();
+                await fetchAlarms();
               },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -132,6 +289,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     _buildChart(),
                     const SizedBox(height: 24),
                     _buildStockInfo(),
+                    const SizedBox(height: 24),
+                    _buildAnalysisSection(),
+                    const SizedBox(height: 24),
+                    _buildAlarmSection(),
                     const SizedBox(height: 24),
                     _buildNewsSection(),
                     const SizedBox(height: 16),
@@ -172,12 +333,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             final title = article['title'] ?? '';
             final source = article['source'] ?? '';
             final publishedAt = (article['published_at'] ?? '').toString().substring(0, 10);
-            final url = article['url'] ?? '';
             final changePct = article['price_change_pct'] as double?;
             final priceClose = article['price_close'] as double?;
 
             final hasImpact = changePct != null;
-            final isPositive = hasImpact && changePct! >= 0;
+            final changeValue = changePct ?? 0;
+            final isPositive = hasImpact && changeValue >= 0;
             final impactColor = hasImpact
                 ? (isPositive ? Colors.green : Colors.red)
                 : Colors.grey;
@@ -211,9 +372,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: impactColor.withOpacity(0.12),
+                                  color: impactColor.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: impactColor.withOpacity(0.4)),
+                                  border: Border.all(color: impactColor.withValues(alpha: 0.4)),
                                 ),
                                 child: Column(
                                   children: [
@@ -225,7 +386,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                       size: 14,
                                     ),
                                     Text(
-                                      '${isPositive ? '+' : ''}${changePct!.toStringAsFixed(2)}%',
+                                      '${isPositive ? '+' : ''}${changeValue.toStringAsFixed(2)}%',
                                       style: TextStyle(
                                         color: impactColor,
                                         fontSize: 12,
@@ -280,7 +441,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 ),
               ),
             );
-          }).toList(),
+          }),
       ],
     );
   }
@@ -477,6 +638,141 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
+  Widget _buildAnalysisSection() {
+    final recommendation = (analysisData?['recommendation'] ?? 'TUT').toString();
+    final upProbability = (analysisData?['up_probability'] as num?)?.toDouble() ?? 0.0;
+    final riskScore = (analysisData?['risk_score'] as num?)?.toDouble() ?? 0.0;
+    final confidence = (analysisData?['confidence'] as num?)?.toDouble() ?? 0.0;
+    final reasons = (analysisData?['reasons'] as List?)?.map((e) => e.toString()).toList() ?? [];
+    final currentPrice = (analysisData?['current_price'] as num?)?.toDouble();
+    final changePercent = (analysisData?['change_percent'] as num?)?.toDouble();
+
+    Color recommendationColor;
+    if (recommendation == 'AL') {
+      recommendationColor = Colors.green;
+    } else if (recommendation == 'SAT') {
+      recommendationColor = Colors.red;
+    } else {
+      recommendationColor = Colors.orange;
+    }
+
+    final riskText = riskScore < 0.35
+        ? 'Düşük'
+        : riskScore < 0.7
+            ? 'Orta'
+            : 'Yüksek';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Analiz',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        if (analysisLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (analysisError != null)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.analytics_outlined, color: Colors.grey[400]),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      analysisError!,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: recommendationColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: recommendationColor.withValues(alpha: 0.35)),
+                        ),
+                        child: Text(
+                          recommendation,
+                          style: TextStyle(
+                            color: recommendationColor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '%${(upProbability * 100).toStringAsFixed(1)} yükselme ihtimali',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildAnalysisMetric('Risk', riskText),
+                  _buildAnalysisMetric('Güven', '%${(confidence * 100).toStringAsFixed(1)}'),
+                  if (currentPrice != null) _buildAnalysisMetric('Analiz fiyatı', '₺${currentPrice.toStringAsFixed(2)}'),
+                  if (changePercent != null) _buildAnalysisMetric('Günlük değişim', '%${changePercent.toStringAsFixed(2)}'),
+                  const SizedBox(height: 12),
+                  if (reasons.isEmpty)
+                    const Text('Şu an açıklama üretilemedi.')
+                  else
+                    ...reasons.map(
+                      (reason) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('• ', style: TextStyle(color: Colors.grey[600])),
+                            Expanded(
+                              child: Text(
+                                reason,
+                                style: TextStyle(color: Colors.grey[700]),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Not: Bu sonuç yatırım tavsiyesi değildir.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildAnalysisMetric(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey[600])),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -487,6 +783,207 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
         ],
       ),
+    );
+  }
+
+  Widget _buildAlarmSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Fiyat Alarmları',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            TextButton.icon(
+              onPressed: _showAlarmDialog,
+              icon: const Icon(Icons.add_alert, size: 18),
+              label: const Text('Alarm Ekle'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (alarmsLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (alarms.isEmpty)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.notifications_none, color: Colors.grey[400]),
+                  const SizedBox(width: 12),
+                  const Text('Henüz alarm kurulmamış.', style: TextStyle(color: Colors.grey)),
+                ],
+              ),
+            ),
+          )
+        else
+          ...alarms.map((alarm) {
+            final lower = alarm['lower_bound'] as double?;
+            final upper = alarm['upper_bound'] as double?;
+            final isTriggered = alarm['is_triggered'] == true;
+            final currentPrice = prices.isNotEmpty ? prices.last : 0.0;
+
+            // Bant görseli için hesapla
+            double? bandMin = lower ?? (upper != null ? upper * 0.9 : null);
+            double? bandMax = upper ?? (lower != null ? lower * 1.1 : null);
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              color: isTriggered ? Colors.orange[50] : null,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          isTriggered ? Icons.notifications_active : Icons.notifications,
+                          color: isTriggered ? Colors.orange : Colors.grey[600],
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (lower != null)
+                                Row(children: [
+                                  const Icon(Icons.arrow_downward, color: Colors.red, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text('Alt sınır: ₺${lower.toStringAsFixed(2)}',
+                                      style: const TextStyle(fontSize: 13)),
+                                ]),
+                              if (upper != null)
+                                Row(children: [
+                                  const Icon(Icons.arrow_upward, color: Colors.green, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text('Üst sınır: ₺${upper.toStringAsFixed(2)}',
+                                      style: const TextStyle(fontSize: 13)),
+                                ]),
+                            ],
+                          ),
+                        ),
+                        if (isTriggered)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text('Tetiklendi',
+                                style: TextStyle(color: Colors.white, fontSize: 11)),
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                          onPressed: () => deleteAlarm(alarm['id']),
+                        ),
+                      ],
+                    ),
+                    // Bant görseli
+                    if (bandMin != null && bandMax != null && currentPrice > 0) ...[
+                      const SizedBox(height: 10),
+                      _buildPriceBand(currentPrice, bandMin, bandMax, lower, upper),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _buildPriceBand(double current, double bandMin, double bandMax, double? lower, double? upper) {
+    final rangeMin = [current, bandMin].reduce(min) * 0.97;
+    final rangeMax = [current, bandMax].reduce(max) * 1.03;
+    final range = rangeMax - rangeMin;
+    if (range <= 0) return const SizedBox();
+
+    final currentPos = ((current - rangeMin) / range).clamp(0.0, 1.0);
+    final lowerPos = lower != null ? ((lower - rangeMin) / range).clamp(0.0, 1.0) : null;
+    final upperPos = upper != null ? ((upper - rangeMin) / range).clamp(0.0, 1.0) : null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Fiyat bandı', style: TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 4),
+        LayoutBuilder(
+          builder: (ctx, constraints) {
+            final w = constraints.maxWidth;
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Arka plan bant
+                Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                // Yeşil bölge (alt-üst arası)
+                if (lowerPos != null && upperPos != null)
+                  Positioned(
+                    left: lowerPos * w,
+                    width: (upperPos - lowerPos) * w,
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: Colors.green.withValues(alpha: 0.25),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                // Alt sınır çizgisi
+                if (lowerPos != null)
+                  Positioned(
+                    left: lowerPos * w - 1,
+                    child: Container(width: 2, height: 8, color: Colors.red),
+                  ),
+                // Üst sınır çizgisi
+                if (upperPos != null)
+                  Positioned(
+                    left: upperPos * w - 1,
+                    child: Container(width: 2, height: 8, color: Colors.green),
+                  ),
+                // Güncel fiyat göstergesi
+                Positioned(
+                  left: (currentPos * w - 6).clamp(0, w - 12),
+                  top: -4,
+                  child: Container(
+                    width: 12,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: Colors.blue,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 4),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            if (lower != null)
+              Text('₺${lower.toStringAsFixed(0)}',
+                  style: const TextStyle(fontSize: 10, color: Colors.red)),
+            Text('₺${current.toStringAsFixed(0)}',
+                style: const TextStyle(fontSize: 10, color: Colors.blue, fontWeight: FontWeight.bold)),
+            if (upper != null)
+              Text('₺${upper.toStringAsFixed(0)}',
+                  style: const TextStyle(fontSize: 10, color: Colors.green)),
+          ],
+        ),
+      ],
     );
   }
 }

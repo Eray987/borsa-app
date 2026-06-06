@@ -22,6 +22,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool isLoading = false;
 
+  String _extractErrorMessage(http.Response response, String fallback) {
+    final body = response.body.trim();
+    if (body.isEmpty) return fallback;
+
+    try {
+      final parsed = jsonDecode(body);
+      if (parsed is Map<String, dynamic>) {
+        final detail = parsed['detail'];
+        if (detail is String && detail.isNotEmpty) {
+          return detail;
+        }
+      }
+    } catch (_) {
+      // Backend can return plain-text errors in some failure cases.
+    }
+
+    return body;
+  }
+
   Future<void> login() async {
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
@@ -63,10 +82,12 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       } else {
+        final errorMessage = _extractErrorMessage(
+          response,
+          'Giriş başarısız. Bilgileri kontrol et.',
+        );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Giriş başarısız. Bilgileri kontrol et.'),
-          ),
+          SnackBar(content: Text(errorMessage)),
         );
       }
     } catch (e) {
@@ -75,10 +96,11 @@ class _LoginScreenState extends State<LoginScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text('Bir hata oluştu: $e')));
     } finally {
-      if (!mounted) return;
-      setState(() {
-        isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 

@@ -52,3 +52,34 @@ class PositionSummary(BaseModel):
 
 class PortfolioSummaryResponse(BaseModel):
     positions: list[PositionSummary]
+
+
+class AlarmCreate(BaseModel):
+    symbol: str = Field(min_length=1)
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+
+
+class AlarmOut(BaseModel):
+    id: int
+    symbol: str
+    lower_bound: Optional[float] = None
+    upper_bound: Optional[float] = None
+    is_triggered: bool
+    created_at: datetime
+    triggered_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class AnalyzeResponse(BaseModel):
+    symbol: str
+    recommendation: str
+    up_probability: float
+    risk_score: float
+    confidence: float
+    horizon_days: int
+    reasons: list[str]
+    current_price: float
+    change_percent: float
