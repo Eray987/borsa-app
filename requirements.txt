@@ -4,6 +4,12 @@ SQLAlchemy==2.0.34
 pydantic==2.8.2
 python-jose==3.3.0
 passlib[bcrypt]==1.7.4
+bcrypt==3.2.2
 email-validator
 requests==2.32.3
 python-dotenv==1.0.1
+pandas==2.2.2
+yfinance==0.2.43
+scikit-learn==1.5.1
+joblib==1.4.2
+python-multipart==0.0.9

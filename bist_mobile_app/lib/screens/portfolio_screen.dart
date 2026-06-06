@@ -24,6 +24,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   int _currentIndex = 0;
   List<dynamic> favorites = [];
   bool favoritesLoading = true;
+  Map<String, double> favoritePrices = {};
+  Map<String, double> favoriteChanges = {};
+  Map<String, String> favoriteLogos = {};
   Map<String, dynamic>? userInfo;
   bool userInfoLoading = true;
   final GlobalKey<TransactionsScreenState> _transactionsKey = GlobalKey<TransactionsScreenState>();
@@ -75,6 +78,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           favorites = data;
           favoritesLoading = false;
         });
+        fetchFavoritePrices();
       } else {
         setState(() {
           favoritesLoading = false;
@@ -84,6 +88,39 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       setState(() {
         favoritesLoading = false;
       });
+    }
+  }
+
+  Future<void> fetchFavoritePrices() async {
+    if (favorites.isEmpty) return;
+    try {
+      final url = Uri.parse('$baseUrl/market/bist30');
+      final response = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer ${widget.token}'},
+      );
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data is List) {
+          final Map<String, double> prices = {};
+          final Map<String, double> changes = {};
+          final Map<String, String> logos = {};
+          for (final item in data) {
+            final sym = item['symbol']?.toString() ?? '';
+            prices[sym] = (item['price'] as num?)?.toDouble() ?? 0.0;
+            changes[sym] = (item['change_percent'] as num?)?.toDouble() ?? 0.0;
+            logos[sym] = item['logo_url']?.toString() ?? '';
+          }
+          setState(() {
+            favoritePrices = prices;
+            favoriteChanges = changes;
+            favoriteLogos = logos;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Favori fiyat hatası: $e');
     }
   }
 
@@ -351,10 +388,25 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         itemBuilder: (context, index) {
           final fav = favorites[index];
           final symbol = fav['symbol'] ?? '';
+          final price = favoritePrices[symbol];
+          final change = favoriteChanges[symbol];
+          final logoUrl = favoriteLogos[symbol] ?? '';
+          final hasPrice = price != null && price > 0;
+          final isPositive = (change ?? 0) >= 0;
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
+              leading: _buildFavLogo(logoUrl, symbol),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        StockDetailScreen(symbol: symbol, token: widget.token),
+                  ),
+                );
+              },
               title: Text(
                 symbol,
                 style: const TextStyle(
@@ -369,21 +421,41 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  if (hasPrice)
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '₺${price!.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                          ),
+                        ),
+                        Text(
+                          '${isPositive ? '+' : ''}${change!.toStringAsFixed(2)}%',
+                          style: TextStyle(
+                            color: isPositive ? Colors.green : Colors.red,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    )
+                  else
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(Icons.delete_outline, color: Colors.red),
                     onPressed: () => removeFavorite(symbol),
                   ),
                 ],
               ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        StockDetailScreen(symbol: symbol, token: widget.token),
-                  ),
-                );
-              },
             ),
           );
         },
@@ -436,6 +508,43 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFavLogo(String logoUrl, String symbol) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: logoUrl.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                logoUrl,
+                width: 42,
+                height: 42,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => _buildFavFallback(symbol),
+              ),
+            )
+          : _buildFavFallback(symbol),
+    );
+  }
+
+  Widget _buildFavFallback(String symbol) {
+    return Center(
+      child: Text(
+        symbol.isNotEmpty ? symbol[0] : '?',
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+          color: Colors.green,
         ),
       ),
     );

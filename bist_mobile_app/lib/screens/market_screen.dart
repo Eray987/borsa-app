@@ -243,6 +243,7 @@ class _MarketScreenState extends State<MarketScreen> {
                 final change = (stock['change_percent'] ?? 0.0) as num;
                 final isPositive = change >= 0;
                 final isFavorite = favoriteSymbols.contains(symbol);
+                final logoUrl = stock['logo_url'] ?? '';
 
                 return Card(
                   margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
@@ -258,6 +259,7 @@ class _MarketScreenState extends State<MarketScreen> {
                         ),
                       );
                     },
+                    leading: _buildLogo(logoUrl, symbol),
                     title: Text(
                       symbol,
                       style: const TextStyle(
@@ -312,6 +314,43 @@ class _MarketScreenState extends State<MarketScreen> {
                   ),
               ],
             ),
+    );
+  }
+
+  Widget _buildLogo(String logoUrl, String symbol) {
+    return Container(
+      width: 42,
+      height: 42,
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: logoUrl.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.network(
+                logoUrl,
+                width: 42,
+                height: 42,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => _fallbackAvatar(symbol),
+              ),
+            )
+          : _fallbackAvatar(symbol),
+    );
+  }
+
+  Widget _fallbackAvatar(String symbol) {
+    return Center(
+      child: Text(
+        symbol.isNotEmpty ? symbol[0] : '?',
+        style: const TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+          color: Colors.green,
+        ),
+      ),
     );
   }
 

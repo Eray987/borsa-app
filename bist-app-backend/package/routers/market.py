@@ -35,6 +35,39 @@ BIST30_SYMBOLS = [
     "SAHOL", "KOZAL", "PGSUS", "TOASO", "ARCLK"
 ]
 
+BIST30_DOMAINS = {
+    "THYAO": "turkishairlines.com",
+    "ASELS": "aselsan.com.tr",
+    "GARAN": "garantibbva.com.tr",
+    "AKBNK": "akbank.com",
+    "SISE":  "sisecam.com",
+    "EREGL": "erdemir.com.tr",
+    "KCHOL": "koc.com.tr",
+    "SASA":  "sasa.com",
+    "HEKTS": "hektas.com.tr",
+    "PETKM": "petkim.com.tr",
+    "FROTO": "fordotosan.com.tr",
+    "ISCTR": "isbank.com.tr",
+    "AYGAZ": "aygaz.com.tr",
+    "MGROS": "migros.com.tr",
+    "SOKM":  "sokmarket.com.tr",
+    "TCELL": "turkcell.com.tr",
+    "TUPRS": "tupras.com.tr",
+    "YKBNK": "yapikredi.com.tr",
+    "TTKOM": "turktelekom.com.tr",
+    "ULKER": "ulker.com.tr",
+    "BIMAS": "bim.com.tr",
+    "HALKB": "halkbank.com.tr",
+    "VAKBN": "vakifbank.com.tr",
+    "ENKAI": "enka.com",
+    "ANSGR": "anadolusigorta.com.tr",
+    "SAHOL": "sabanci.com",
+    "KOZAL": "kozaaltin.com.tr",
+    "PGSUS": "flypgs.com",
+    "TOASO": "tofas.com.tr",
+    "ARCLK": "arcelik.com",
+}
+
 BIST30_NAMES = {
     "THYAO": "Türk Hava Yolları",
     "ASELS": "Aselsan",
@@ -157,15 +190,17 @@ def get_bist30():
                 raise ValueError("Fiyat sıfır")
 
             change_percent = ((current_price - prev_price) / prev_price * 100) if prev_price else 0.0
+            domain = BIST30_DOMAINS.get(symbol, "")
+            logo_url = f"https://www.google.com/s2/favicons?domain={domain}&sz=64" if domain else ""
             stocks_data.append({
                 "symbol": symbol,
                 "name": BIST30_NAMES.get(symbol, symbol),
                 "price": round(current_price, 4),
                 "change_percent": round(change_percent, 4),
+                "logo_url": logo_url,
             })
         except Exception as e:
             print(f"Yahoo Finance hatası {symbol}: {e} — CSV'ye düşülüyor")
-            # Fallback: yerel CSV
             local = _load_local_dataset()
             rows = local[local["symbol"] == yahoo_symbol]
             if not rows.empty:
@@ -173,11 +208,14 @@ def get_bist30():
                 cp = float(rows.iloc[-1]["close"])
                 pp = float(rows.iloc[-2]["close"]) if len(rows) >= 2 else cp
                 ch = ((cp - pp) / pp * 100) if pp else 0.0
+                domain = BIST30_DOMAINS.get(symbol, "")
+                logo_url = f"https://www.google.com/s2/favicons?domain={domain}&sz=64" if domain else ""
                 stocks_data.append({
                     "symbol": symbol,
                     "name": BIST30_NAMES.get(symbol, symbol),
                     "price": round(cp, 4),
                     "change_percent": round(ch, 4),
+                    "logo_url": logo_url,
                 })
 
     if not stocks_data:
@@ -223,16 +261,30 @@ def get_stock_detail(symbol: str, period: str = "1mo"):
             prev_price = float(meta.get("chartPreviousClose") or 0) or None
 
             timestamps = result.get("timestamp", [])
-            closes = result["indicators"]["quote"][0].get("close", [])
+            quote = result["indicators"]["quote"][0]
+            closes = quote.get("close", [])
+            opens  = quote.get("open",  [])
+            highs  = quote.get("high",  [])
+            lows   = quote.get("low",   [])
 
             from datetime import datetime
-            for ts, c in zip(timestamps, closes):
+            for i, ts in enumerate(timestamps):
+                c = closes[i] if i < len(closes) else None
+                o = opens[i]  if i < len(opens)  else None
+                h = highs[i]  if i < len(highs)  else None
+                l = lows[i]   if i < len(lows)   else None
                 if c is None:
                     continue
                 date_str = datetime.fromtimestamp(ts).strftime(
                     "%Y-%m-%d %H:%M" if yf_interval in ("5m", "1h") else "%Y-%m-%d"
                 )
-                chart_data.append({"date": date_str, "close": round(float(c), 4)})
+                chart_data.append({
+                    "date":  date_str,
+                    "open":  round(float(o), 4) if o is not None else round(float(c), 4),
+                    "high":  round(float(h), 4) if h is not None else round(float(c), 4),
+                    "low":   round(float(l), 4) if l is not None else round(float(c), 4),
+                    "close": round(float(c), 4),
+                })
     except Exception as e:
         print(f"Yahoo Finance chart hatası {symbol}: {e}")
 

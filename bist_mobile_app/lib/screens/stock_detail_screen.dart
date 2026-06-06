@@ -27,6 +27,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   String? analysisError;
   String selectedPeriod = '1mo';
   List<double> prices = [];
+  List<Map<String, dynamic>> candles = [];
+  bool showCandlestick = true;
   List<dynamic> stockNews = [];
   bool newsLoading = true;
   bool analysisLoading = true;
@@ -247,6 +249,19 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             prices = chartData
                 .map((e) => (e['close'] as num).toDouble())
                 .toList();
+
+            // Mum grafik için OHLC listesi
+            final parsed = <Map<String, dynamic>>[];
+            for (final e in chartData) {
+              final o = (e['open']  as num?)?.toDouble() ?? 0;
+              final h = (e['high']  as num?)?.toDouble() ?? 0;
+              final l = (e['low']   as num?)?.toDouble() ?? 0;
+              final c = (e['close'] as num?)?.toDouble() ?? 0;
+              if (c <= 0 || o <= 0 || h <= 0 || l <= 0) continue;
+              if (h < l) continue;
+              parsed.add({'open': o, 'high': h, 'low': l, 'close': c, 'date': e['date']});
+            }
+            candles = parsed;
           }
         });
       } else {
@@ -285,7 +300,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     _buildPriceCard(),
                     const SizedBox(height: 24),
                     _buildPeriodSelector(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
+                    _buildChartTypeToggle(),
+                    const SizedBox(height: 8),
                     _buildChart(),
                     const SizedBox(height: 24),
                     _buildStockInfo(),
@@ -527,14 +544,64 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
+  Widget _buildChartTypeToggle() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _toggleBtn(Icons.candlestick_chart, 'Mum', showCandlestick, () {
+          setState(() => showCandlestick = true);
+        }),
+        const SizedBox(width: 8),
+        _toggleBtn(Icons.show_chart, 'Çizgi', !showCandlestick, () {
+          setState(() => showCandlestick = false);
+        }),
+      ],
+    );
+  }
+
+  Widget _toggleBtn(IconData icon, String label, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? Colors.green : Colors.grey[200],
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, size: 16, color: active ? Colors.white : Colors.black54),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: active ? Colors.white : Colors.black54,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildChart() {
     if (prices.isEmpty) {
       return const SizedBox(
-        height: 250,
+        height: 320,
         child: Center(child: Text('Veri yok')),
       );
     }
 
+    if (showCandlestick && candles.isNotEmpty) {
+      return SizedBox(
+        height: 320,
+        child: _CandlestickChart(candles: candles),
+      );
+    }
+
+    // Çizgi grafik (fallback)
     final spots = prices.asMap().entries.map((e) {
       return FlSpot(e.key.toDouble(), e.value);
     }).toList();
@@ -544,7 +611,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     final isPositive = prices.last >= prices.first;
 
     return SizedBox(
-      height: 250,
+      height: 320,
       child: LineChart(
         LineChartData(
           gridData: FlGridData(
@@ -567,7 +634,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 getTitlesWidget: (value, meta) {
                   return Text(
                     '₺${value.toStringAsFixed(0)}',
-                    style: TextStyle(fontSize: 10),
+                    style: const TextStyle(fontSize: 10),
                   );
                 },
               ),
@@ -588,9 +655,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,
-                color: (isPositive ? Colors.green : Colors.red).withValues(
-                  alpha: 0.1,
-                ),
+                color: (isPositive ? Colors.green : Colors.red).withValues(alpha: 0.1),
               ),
             ),
           ],
@@ -898,6 +963,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
+  // ── Yardımcı Widget'lar ──────────────────────────────────────────────────
+
   Widget _buildPriceBand(double current, double bandMin, double bandMax, double? lower, double? upper) {
     final rangeMin = [current, bandMin].reduce(min) * 0.97;
     final rangeMax = [current, bandMax].reduce(max) * 1.03;
@@ -986,4 +1053,152 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       ],
     );
   }
+}
+
+// ── Custom Candlestick Chart ─────────────────────────────────────────────────
+
+class _CandlestickChart extends StatefulWidget {
+  final List<Map<String, dynamic>> candles;
+  const _CandlestickChart({required this.candles});
+
+  @override
+  State<_CandlestickChart> createState() => _CandlestickChartState();
+}
+
+class _CandlestickChartState extends State<_CandlestickChart> {
+  static const int _visibleCount = 30;
+  int _offset = 0;
+
+  int get _maxOffset => (widget.candles.length - _visibleCount).clamp(0, widget.candles.length);
+
+  void _resetOffset() {
+    _offset = _maxOffset; // en son mumları göster
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _resetOffset();
+  }
+
+  @override
+  void didUpdateWidget(_CandlestickChart old) {
+    super.didUpdateWidget(old);
+    if (old.candles.length != widget.candles.length) {
+      _resetOffset();
+    }
+  }
+
+  void _pan(DragUpdateDetails d) {
+    final step = (d.delta.dx < 0) ? 1 : -1;
+    setState(() {
+      _offset = (_offset + step).clamp(0, _maxOffset);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visible = widget.candles.sublist(
+      _offset,
+      (_offset + _visibleCount).clamp(0, widget.candles.length),
+    );
+
+    return GestureDetector(
+      onHorizontalDragUpdate: _pan,
+      child: Column(
+        children: [
+          Expanded(
+            child: CustomPaint(
+              painter: _CandlestickPainter(candles: visible),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              '← kaydır →',
+              style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CandlestickPainter extends CustomPainter {
+  final List<Map<String, dynamic>> candles;
+  _CandlestickPainter({required this.candles});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (candles.isEmpty) return;
+
+    final highs  = candles.map((c) => (c['high']  as num).toDouble()).toList();
+    final lows   = candles.map((c) => (c['low']   as num).toDouble()).toList();
+    final maxH   = highs.reduce(max);
+    final minL   = lows.reduce(min);
+    final range  = maxH - minL;
+    if (range <= 0) return;
+
+    final padT = 16.0, padB = 24.0, padLR = 8.0;
+    final chartH = size.height - padT - padB;
+    final chartW = size.width - padLR * 2;
+
+    double toY(double v) => padT + (1 - (v - minL) / range) * chartH;
+
+    final n         = candles.length;
+    final candleW   = chartW / n;
+    final bodyW     = (candleW * 0.6).clamp(2.0, 16.0);
+
+    // Y ekseni etiketleri
+    final labelPaint = Paint();
+    final textStyle  = TextStyle(fontSize: 9, color: Colors.grey[500]);
+    for (int i = 0; i <= 4; i++) {
+      final v    = minL + range * i / 4;
+      final y    = toY(v);
+      // yatay grid çizgisi
+      canvas.drawLine(
+        Offset(padLR, y),
+        Offset(size.width - padLR, y),
+        Paint()..color = Colors.grey[300]!..strokeWidth = 0.5,
+      );
+      // etiket
+      final tp = TextPainter(
+        text: TextSpan(text: '₺${v.toStringAsFixed(0)}', style: textStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset(padLR, y - 10));
+    }
+
+    // Mumlar
+    for (int i = 0; i < n; i++) {
+      final c = candles[i];
+      final open  = (c['open']  as num).toDouble();
+      final high  = (c['high']  as num).toDouble();
+      final low   = (c['low']   as num).toDouble();
+      final close = (c['close'] as num).toDouble();
+
+      final isGreen = close >= open;
+      final color   = isGreen ? Colors.green : Colors.red;
+      final paint   = Paint()..color = color..strokeWidth = 1;
+
+      final cx  = padLR + (i + 0.5) * candleW;
+      final top = toY(isGreen ? close : open);
+      final bot = toY(isGreen ? open  : close);
+
+      // Fitil (wick)
+      canvas.drawLine(Offset(cx, toY(high)), Offset(cx, toY(low)), paint);
+
+      // Gövde (body)
+      final bodyHeight = (bot - top).abs().clamp(1.0, double.infinity);
+      canvas.drawRect(
+        Rect.fromLTWH(cx - bodyW / 2, top, bodyW, bodyHeight),
+        Paint()..color = color,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_CandlestickPainter old) => old.candles != candles;
 }
