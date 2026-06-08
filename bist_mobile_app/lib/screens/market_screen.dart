@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../constants.dart';
+import '../theme.dart';
 import 'stock_detail_screen.dart';
 
 class MarketScreen extends StatefulWidget {
@@ -219,7 +220,7 @@ class _MarketScreenState extends State<MarketScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: Colors.grey[200],
+                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                       contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     ),
                   ),
@@ -238,103 +239,149 @@ class _MarketScreenState extends State<MarketScreen> {
                       itemCount: filteredStocks.length,
                       itemBuilder: (context, index) {
                         final stock = filteredStocks[index];
-                final symbol = stock['symbol'] ?? '';
-                final price = (stock['price'] ?? 0.0) as num;
-                final change = (stock['change_percent'] ?? 0.0) as num;
-                final isPositive = change >= 0;
-                final isFavorite = favoriteSymbols.contains(symbol);
-                final logoUrl = stock['logo_url'] ?? '';
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                  child: ListTile(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => StockDetailScreen(
-                            symbol: symbol,
-                            token: widget.token,
-                          ),
-                        ),
-                      );
-                    },
-                    leading: _buildLogo(logoUrl, symbol),
-                    title: Text(
-                      symbol,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+                        return _buildStockCard(stock);
+                      },
                     ),
-                    subtitle: Text(
-                      stock['name'] ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'TL${price.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                            Text(
-                              '${isPositive ? '+' : ''}${change.toStringAsFixed(2)}%',
-                              style: TextStyle(
-                                color: isPositive ? Colors.green : Colors.red,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          icon: Icon(
-                            isFavorite ? Icons.star : Icons.star_border,
-                            color: Colors.amber,
-                          ),
-                          onPressed: () => toggleFavorite(symbol),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
                   ),
               ],
             ),
     );
   }
 
+  Widget _buildStockCard(dynamic stock) {
+    final symbol = stock['symbol'] ?? '';
+    final name = stock['name'] ?? '';
+    final price = (stock['price'] ?? 0.0) as num;
+    final change = (stock['change_percent'] ?? 0.0) as num;
+    final isPositive = change >= 0;
+    final isFavorite = favoriteSymbols.contains(symbol);
+    final logoUrl = stock['logo_url'] ?? '';
+    final changeColor = isPositive ? AppColors.up : AppColors.down;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => StockDetailScreen(
+                symbol: symbol,
+                token: widget.token,
+              ),
+            ),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+          child: Row(
+            children: [
+              _buildLogo(logoUrl, symbol),
+              const SizedBox(width: 14),
+              // Sembol + isim
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      symbol,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Fiyat + değişim rozeti
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '₺${price.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: changeColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isPositive ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                          color: changeColor,
+                          size: 16,
+                        ),
+                        Text(
+                          '${change.abs().toStringAsFixed(2)}%',
+                          style: TextStyle(
+                            color: changeColor,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: Icon(
+                  isFavorite ? Icons.star : Icons.star_border,
+                  color: isFavorite ? Colors.amber : Colors.grey,
+                  size: 22,
+                ),
+                onPressed: () => toggleFavorite(symbol),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLogo(String logoUrl, String symbol) {
     return Container(
-      width: 42,
-      height: 42,
+      width: 46,
+      height: 46,
       decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey[200]!),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: logoUrl.isNotEmpty
           ? ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.network(
-                logoUrl,
-                width: 42,
-                height: 42,
-                fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => _fallbackAvatar(symbol),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(5),
+                child: Image.network(
+                  logoUrl,
+                  width: 46,
+                  height: 46,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => _fallbackAvatar(symbol),
+                ),
               ),
             )
           : _fallbackAvatar(symbol),
@@ -348,7 +395,7 @@ class _MarketScreenState extends State<MarketScreen> {
         style: const TextStyle(
           fontWeight: FontWeight.bold,
           fontSize: 18,
-          color: Colors.green,
+          color: AppColors.primary,
         ),
       ),
     );

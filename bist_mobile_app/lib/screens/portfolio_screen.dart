@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../constants.dart';
 import '../main.dart';
+import '../theme.dart';
 import 'stock_detail_screen.dart';
 import 'market_screen.dart';
 import 'news_screen.dart';
@@ -505,6 +506,47 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   const Divider(height: 1),
                   _buildProfileTile(Icons.email_outlined, 'E-posta', email.isNotEmpty ? email : '-'),
                 ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Tema ayarı
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                child: AnimatedBuilder(
+                  animation: themeController,
+                  builder: (context, _) {
+                    final isDark = themeController.isDark;
+                    return Row(
+                      children: [
+                        Icon(
+                          isDark ? Icons.dark_mode : Icons.light_mode,
+                          color: AppColors.primary,
+                          size: 24,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Tema',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                              const SizedBox(height: 2),
+                              Text(isDark ? 'Koyu' : 'Açık',
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                        Switch(
+                          value: isDark,
+                          activeColor: AppColors.primary,
+                          onChanged: (_) => themeController.toggle(),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ],

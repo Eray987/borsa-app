@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
-import 'screens/register_screen.dart';
-import 'screens/portfolio_screen.dart';
+import 'theme.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await themeController.load();
   runApp(const BistMobileApp());
 }
 
@@ -12,14 +13,18 @@ class BistMobileApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'BIST Mobile App',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        useMaterial3: true,
-      ),
-      home: const LoginScreen(),
+    return AnimatedBuilder(
+      animation: themeController,
+      builder: (context, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'BIST Mobile App',
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: themeController.mode,
+          home: const LoginScreen(),
+        );
+      },
     );
   }
 }

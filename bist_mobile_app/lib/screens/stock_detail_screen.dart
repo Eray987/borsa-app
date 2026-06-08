@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:fl_chart/fl_chart.dart';
 import '../constants.dart';
+import '../theme.dart';
 
 class StockDetailScreen extends StatefulWidget {
   final String symbol;
@@ -528,13 +529,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected ? Colors.green : Colors.grey[200],
+              color: isSelected
+                  ? AppColors.primary
+                  : Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               period,
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black,
+                color: isSelected
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -565,17 +570,25 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: active ? Colors.green : Colors.grey[200],
+          color: active
+              ? AppColors.primary
+              : Theme.of(context).colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
           children: [
-            Icon(icon, size: 16, color: active ? Colors.white : Colors.black54),
+            Icon(icon,
+                size: 16,
+                color: active
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(width: 4),
             Text(
               label,
               style: TextStyle(
-                color: active ? Colors.white : Colors.black54,
+                color: active
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.bold,
                 fontSize: 13,
               ),
@@ -1113,7 +1126,11 @@ class _CandlestickChartState extends State<_CandlestickChart> {
         children: [
           Expanded(
             child: CustomPaint(
-              painter: _CandlestickPainter(candles: visible),
+              painter: _CandlestickPainter(
+                candles: visible,
+                gridColor: Theme.of(context).dividerColor,
+                labelColor: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
               child: const SizedBox.expand(),
             ),
           ),
@@ -1133,7 +1150,13 @@ class _CandlestickChartState extends State<_CandlestickChart> {
 
 class _CandlestickPainter extends CustomPainter {
   final List<Map<String, dynamic>> candles;
-  _CandlestickPainter({required this.candles});
+  final Color gridColor;
+  final Color labelColor;
+  _CandlestickPainter({
+    required this.candles,
+    required this.gridColor,
+    required this.labelColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1157,8 +1180,7 @@ class _CandlestickPainter extends CustomPainter {
     final bodyW     = (candleW * 0.6).clamp(2.0, 16.0);
 
     // Y ekseni etiketleri
-    final labelPaint = Paint();
-    final textStyle  = TextStyle(fontSize: 9, color: Colors.grey[500]);
+    final textStyle  = TextStyle(fontSize: 9, color: labelColor);
     for (int i = 0; i <= 4; i++) {
       final v    = minL + range * i / 4;
       final y    = toY(v);
@@ -1166,7 +1188,7 @@ class _CandlestickPainter extends CustomPainter {
       canvas.drawLine(
         Offset(padLR, y),
         Offset(size.width - padLR, y),
-        Paint()..color = Colors.grey[300]!..strokeWidth = 0.5,
+        Paint()..color = gridColor..strokeWidth = 0.5,
       );
       // etiket
       final tp = TextPainter(
