@@ -1066,10 +1066,13 @@ class _CandlestickChart extends StatefulWidget {
 }
 
 class _CandlestickChartState extends State<_CandlestickChart> {
-  static const int _visibleCount = 30;
+  // Ekranda gösterilecek maksimum mum sayısı — bu kadardan fazlası varsa kaydırma açılır
+  static const int _maxVisible = 60;
   int _offset = 0;
 
+  int get _visibleCount => widget.candles.length.clamp(1, _maxVisible);
   int get _maxOffset => (widget.candles.length - _visibleCount).clamp(0, widget.candles.length);
+  bool get _canPan => widget.candles.length > _maxVisible;
 
   void _resetOffset() {
     _offset = _maxOffset; // en son mumları göster
@@ -1090,6 +1093,7 @@ class _CandlestickChartState extends State<_CandlestickChart> {
   }
 
   void _pan(DragUpdateDetails d) {
+    if (!_canPan) return;
     final step = (d.delta.dx < 0) ? 1 : -1;
     setState(() {
       _offset = (_offset + step).clamp(0, _maxOffset);
@@ -1113,13 +1117,14 @@ class _CandlestickChartState extends State<_CandlestickChart> {
               child: const SizedBox.expand(),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text(
-              '← kaydır →',
-              style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+          if (_canPan)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                '← kaydır →',
+                style: TextStyle(fontSize: 10, color: Colors.grey[400]),
+              ),
             ),
-          ),
         ],
       ),
     );
