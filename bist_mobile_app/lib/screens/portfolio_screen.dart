@@ -9,6 +9,7 @@ import 'market_screen.dart';
 import 'news_screen.dart';
 import 'transactions_screen.dart';
 import 'dashboard_screen.dart';
+import 'signals_screen.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final String token;
@@ -216,6 +217,8 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
     else if (_currentIndex == 3)
       title = 'Haberler';
     else if (_currentIndex == 4)
+      title = 'Sinyaller';
+    else if (_currentIndex == 5)
       title = 'Profil';
 
     return Scaffold(
@@ -223,7 +226,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
         title: Text(title),
         centerTitle: true,
         actions: [
-          if (_currentIndex == 4)
+          if (_currentIndex == 5)
             PopupMenuButton<String>(
               icon: const Icon(Icons.settings),
               onSelected: (value) {
@@ -297,6 +300,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           MarketScreen(token: widget.token),
           TransactionsScreen(key: _transactionsKey, token: widget.token),
           NewsScreen(token: widget.token),
+          SignalsScreen(token: widget.token),
           _buildProfileBody(),
         ],
       ),
@@ -331,6 +335,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
             icon: Icon(Icons.newspaper_outlined),
             selectedIcon: Icon(Icons.newspaper),
             label: 'Haberler',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.auto_graph_outlined),
+            selectedIcon: Icon(Icons.auto_graph),
+            label: 'Sinyaller',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outline),

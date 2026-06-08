@@ -1,4 +1,4 @@
-"""Gmail SMTP ile alarm bildirimi gönderir."""
+"""Outlook/Hotmail SMTP ile alarm bildirimi gönderir."""
 import smtplib
 import os
 from email.mime.text import MIMEText
@@ -14,8 +14,10 @@ except ImportError:
     pass
 
 # .env veya ortam değişkenlerinden oku
-GMAIL_USER = os.getenv("GMAIL_USER", "")        # örn: senin@gmail.com
-GMAIL_APP_PASSWORD = os.getenv("GMAIL_APP_PASSWORD", "")  # Google App Password
+MAIL_USER     = os.getenv("MAIL_USER", "")      # örn: eray@hotmail.com
+MAIL_PASSWORD = os.getenv("MAIL_PASSWORD", "")  # Outlook şifresi
+MAIL_HOST     = os.getenv("MAIL_HOST", "smtp.office365.com")
+MAIL_PORT     = int(os.getenv("MAIL_PORT", "587"))
 
 
 def send_alarm_email(
@@ -27,8 +29,8 @@ def send_alarm_email(
     user_name: str = "",
 ) -> bool:
     """Fiyat alarmı tetiklendiğinde kullanıcıya mail atar. True → başarılı."""
-    if not GMAIL_USER or not GMAIL_APP_PASSWORD:
-        print("⚠️  GMAIL_USER veya GMAIL_APP_PASSWORD ayarlanmamış — mail atılamadı.")
+    if not MAIL_USER or not MAIL_PASSWORD:
+        print("⚠️  MAIL_USER veya MAIL_PASSWORD ayarlanmamış — mail atılamadı.")
         return False
 
     direction = "yükseldi ▲" if bound_type == "üst" else "düştü ▼"
@@ -62,14 +64,16 @@ def send_alarm_email(
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
-    msg["From"] = GMAIL_USER
+    msg["From"] = MAIL_USER
     msg["To"] = to_email
     msg.attach(MIMEText(html, "html", "utf-8"))
 
     try:
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
-            server.login(GMAIL_USER, GMAIL_APP_PASSWORD)
-            server.sendmail(GMAIL_USER, to_email, msg.as_string())
+        with smtplib.SMTP(MAIL_HOST, MAIL_PORT, timeout=15) as server:
+            server.ehlo()
+            server.starttls()
+            server.login(MAIL_USER, MAIL_PASSWORD)
+            server.sendmail(MAIL_USER, to_email, msg.as_string())
         print(f"✅ Alarm maili gönderildi → {to_email} ({symbol} @ {current_price})")
         return True
     except Exception as e:

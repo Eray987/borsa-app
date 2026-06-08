@@ -11,6 +11,7 @@ from .routers.favorites import router as favorites_router
 from .routers.news import router as news_router
 from .routers.analyze import router as analyze_router
 from .routers.alarms import router as alarms_router
+from .routers.signals import router as signals_router
 from .alarm_scheduler import alarm_scheduler_loop
 
 Base.metadata.create_all(bind=engine)
@@ -18,10 +19,8 @@ Base.metadata.create_all(bind=engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Uygulama başlarken alarm scheduler'ı arka planda başlat
     task = asyncio.create_task(alarm_scheduler_loop())
     yield
-    # Uygulama kapanırken durdur
     task.cancel()
     try:
         await task
@@ -38,6 +37,7 @@ app.include_router(favorites_router)
 app.include_router(news_router)
 app.include_router(analyze_router)
 app.include_router(alarms_router)
+app.include_router(signals_router)
 
 
 @app.get("/")

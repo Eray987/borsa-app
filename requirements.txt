@@ -13,3 +13,9 @@ yfinance==0.2.43
 scikit-learn==1.5.1
 joblib==1.4.2
 python-multipart==0.0.9
+xgboost>=2.0.0
+lightgbm>=4.0.0
+vaderSentiment>=3.3.2
+transformers>=4.40.0
+torch>=2.0.0
+feedparser>=6.0.0

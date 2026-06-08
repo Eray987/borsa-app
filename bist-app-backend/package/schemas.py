@@ -77,6 +77,8 @@ class AnalyzeResponse(BaseModel):
     symbol: str
     recommendation: str
     up_probability: float
+    sell_probability: float = 0.0
+    hold_probability: float = 0.0
     risk_score: float
     confidence: float
     horizon_days: int

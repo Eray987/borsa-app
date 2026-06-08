@@ -107,7 +107,7 @@ class DashboardScreenState extends State<DashboardScreen> {
   Widget _buildIndicesStrip() {
     if (indices.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 74,
+      height: 90,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: indices.length,
@@ -120,7 +120,7 @@ class DashboardScreenState extends State<DashboardScreen> {
           final price = (idx['price'] as num?)?.toDouble() ?? 0;
           final suffix = idx['suffix'] ?? '';
           return Container(
-            width: 130,
+            width: 140,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,

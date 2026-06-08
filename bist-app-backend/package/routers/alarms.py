@@ -4,8 +4,16 @@ from datetime import datetime
 
 from ..deps import get_db, get_current_user
 from .. import models, schemas
+from ..alarm_scheduler import check_alarms_once
 
 router = APIRouter(prefix="/alarms", tags=["alarms"])
+
+
+@router.post("/check-now")
+def trigger_alarm_check(user: models.User = Depends(get_current_user)):
+    """Alarm kontrolünü anında tetikle (test için)."""
+    check_alarms_once()
+    return {"ok": True, "message": "Alarm kontrolü çalıştırıldı"}
 
 
 @router.post("/", response_model=schemas.AlarmOut)

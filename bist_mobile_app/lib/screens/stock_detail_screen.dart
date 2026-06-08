@@ -718,7 +718,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   Widget _buildAnalysisSection() {
     final recommendation = (analysisData?['recommendation'] ?? 'TUT').toString();
-    final upProbability = (analysisData?['up_probability'] as num?)?.toDouble() ?? 0.0;
+    final buyP  = (analysisData?['up_probability']   as num?)?.toDouble() ?? 0.0;
+    final holdP = (analysisData?['hold_probability'] as num?)?.toDouble() ?? 0.0;
+    final sellP = (analysisData?['sell_probability'] as num?)?.toDouble() ?? 0.0;
     final riskScore = (analysisData?['risk_score'] as num?)?.toDouble() ?? 0.0;
     final confidence = (analysisData?['confidence'] as num?)?.toDouble() ?? 0.0;
     final reasons = (analysisData?['reasons'] as List?)?.map((e) => e.toString()).toList() ?? [];
@@ -727,26 +729,20 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
     Color recommendationColor;
     if (recommendation == 'AL') {
-      recommendationColor = Colors.green;
+      recommendationColor = AppColors.up;
     } else if (recommendation == 'SAT') {
-      recommendationColor = Colors.red;
+      recommendationColor = AppColors.down;
     } else {
       recommendationColor = Colors.orange;
     }
 
-    final riskText = riskScore < 0.35
-        ? 'Düşük'
-        : riskScore < 0.7
-            ? 'Orta'
-            : 'Yüksek';
+    final riskText = riskScore < 0.35 ? 'Düşük' : riskScore < 0.7 ? 'Orta' : 'Yüksek';
+    final riskColor = riskScore < 0.35 ? AppColors.up : riskScore < 0.7 ? Colors.orange : AppColors.down;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Analiz',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        const Text('Analiz', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
         const SizedBox(height: 12),
         if (analysisLoading)
           const Center(child: CircularProgressIndicator())
@@ -758,12 +754,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 children: [
                   Icon(Icons.analytics_outlined, color: Colors.grey[400]),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      analysisError!,
-                      style: const TextStyle(color: Colors.grey),
-                    ),
-                  ),
+                  Expanded(child: Text(analysisError!, style: const TextStyle(color: Colors.grey))),
                 ],
               ),
             ),
@@ -775,10 +766,11 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Tavsiye + fiyat satırı ──
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                         decoration: BoxDecoration(
                           color: recommendationColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
@@ -786,25 +778,50 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                         ),
                         child: Text(
                           recommendation,
-                          style: TextStyle(
-                            color: recommendationColor,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: TextStyle(color: recommendationColor, fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                       ),
                       const Spacer(),
-                      Text(
-                        '%${(upProbability * 100).toStringAsFixed(1)} yükselme ihtimali',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
+                      if (currentPrice != null)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('₺${currentPrice.toStringAsFixed(2)}',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                            if (changePercent != null)
+                              Text(
+                                '${changePercent >= 0 ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: changePercent >= 0 ? AppColors.up : AppColors.down,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                          ],
+                        ),
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildAnalysisMetric('Risk', riskText),
-                  _buildAnalysisMetric('Güven', '%${(confidence * 100).toStringAsFixed(1)}'),
-                  if (currentPrice != null) _buildAnalysisMetric('Analiz fiyatı', '₺${currentPrice.toStringAsFixed(2)}'),
-                  if (changePercent != null) _buildAnalysisMetric('Günlük değişim', '%${changePercent.toStringAsFixed(2)}'),
+
+                  // ── AL / TUT / SAT olasılık çubukları ──
+                  _buildProbBar('AL',  buyP,  AppColors.up),
+                  const SizedBox(height: 6),
+                  _buildProbBar('TUT', holdP, Colors.orange),
+                  const SizedBox(height: 6),
+                  _buildProbBar('SAT', sellP, AppColors.down),
+                  const SizedBox(height: 16),
+
+                  // ── Risk & Güven ──
+                  Row(
+                    children: [
+                      Expanded(child: _buildMetricChip('Risk', riskText, riskColor)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _buildMetricChip('Güven', '%${(confidence * 100).toStringAsFixed(0)}', AppColors.primary)),
+                    ],
+                  ),
                   const SizedBox(height: 12),
+
+                  // ── Sebepler ──
                   if (reasons.isEmpty)
                     const Text('Şu an açıklama üretilemedi.')
                   else
@@ -846,6 +863,53 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         children: [
           Text(label, style: TextStyle(color: Colors.grey[600])),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProbBar(String label, double prob, Color color) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 36,
+          child: Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w700)),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: prob.clamp(0.0, 1.0),
+              backgroundColor: color.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+              minHeight: 8,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        SizedBox(
+          width: 40,
+          child: Text('%${(prob * 100).toStringAsFixed(1)}',
+              textAlign: TextAlign.end,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricChip(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600])),
+          const SizedBox(height: 2),
+          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );

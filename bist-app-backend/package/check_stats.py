@@ -23,7 +23,7 @@ class ProbBlend:
 
 # Constants from train.py
 INPUT_FILE = "bist30_2year_long_format.csv"
-MODEL_PATH = "saved_models/model_bist30_multiclass_v2.pkl"
+MODEL_PATH = "models/model_bist30_multiclass_v1.pkl"
 DOWN_THRESHOLD = -0.03
 UP_THRESHOLD = 0.02
 
