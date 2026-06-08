@@ -205,8 +205,20 @@ class TransactionsScreenState extends State<TransactionsScreen> {
                   );
                   if (!mounted) return;
                   if (r.statusCode == 200) {
+                    // Alım işlemiyse hisseyi otomatik favorilere ekle
+                    if (side == 'BUY') {
+                      try {
+                        await http.post(
+                          Uri.parse('$baseUrl/favorites/$symbol'),
+                          headers: {'Authorization': 'Bearer ${widget.token}'},
+                        );
+                      } catch (_) {}
+                    }
+                    if (!mounted) return;
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('İşlem kaydedildi ✓')),
+                      SnackBar(content: Text(side == 'BUY'
+                          ? 'İşlem kaydedildi, $symbol favorilere eklendi ✓'
+                          : 'İşlem kaydedildi ✓')),
                     );
                     _loadAll();
                   } else {

@@ -8,6 +8,7 @@ import 'stock_detail_screen.dart';
 import 'market_screen.dart';
 import 'news_screen.dart';
 import 'transactions_screen.dart';
+import 'dashboard_screen.dart';
 
 class PortfolioScreen extends StatefulWidget {
   final String token;
@@ -31,6 +32,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   Map<String, dynamic>? userInfo;
   bool userInfoLoading = true;
   final GlobalKey<TransactionsScreenState> _transactionsKey = GlobalKey<TransactionsScreenState>();
+  final GlobalKey<DashboardScreenState> _dashboardKey = GlobalKey<DashboardScreenState>();
 
   @override
   void initState() {
@@ -206,7 +208,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String title = 'Portföyüm';
+    String title = 'Özet';
     if (_currentIndex == 1)
       title = 'BIST30 Piyasa';
     else if (_currentIndex == 2)
@@ -268,15 +270,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 ),
               ],
             )
-          else
+          else if (_currentIndex != 0)
             IconButton(
-              onPressed: () {
-                if (_currentIndex == 0) {
-                  fetchFavorites();
-                } else {
-                  fetchPortfolioSummary();
-                }
-              },
+              onPressed: fetchPortfolioSummary,
               icon: const Icon(Icons.refresh),
             ),
         ],
@@ -292,7 +288,12 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       body: IndexedStack(
         index: _currentIndex,
         children: [
-          _buildFavoritesBody(),
+          DashboardScreen(
+            key: _dashboardKey,
+            token: widget.token,
+            firstName: (userInfo?['first_name'] ?? '').toString(),
+            onSeeAllFavorites: () => setState(() => _currentIndex = 1),
+          ),
           MarketScreen(token: widget.token),
           TransactionsScreen(key: _transactionsKey, token: widget.token),
           NewsScreen(token: widget.token),
@@ -305,12 +306,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
           setState(() {
             _currentIndex = index;
           });
+          // Özet sekmesine geçişte favoriler/verileri tazele
+          if (index == 0) {
+            _dashboardKey.currentState?.reload();
+          }
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.star_border),
-            selectedIcon: Icon(Icons.star),
-            label: 'Favoriler',
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Özet',
           ),
           NavigationDestination(
             icon: Icon(Icons.show_chart_outlined),

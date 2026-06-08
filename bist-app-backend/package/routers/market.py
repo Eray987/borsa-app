@@ -162,6 +162,47 @@ def _local_close_series(symbol: str) -> pd.Series:
 
     return pd.Series(symbol_rows["close"].values)
 
+INDICES = [
+    {"key": "XU100.IS",  "label": "BIST 100",  "suffix": ""},
+    {"key": "USDTRY=X",  "label": "USD/TRY",   "suffix": "₺"},
+    {"key": "EURTRY=X",  "label": "EUR/TRY",   "suffix": "₺"},
+    {"key": "GC=F",      "label": "Altın (ons)", "suffix": "$"},
+]
+
+
+@router.get("/indices")
+def get_indices():
+    """Endeks ve döviz kurları (BIST100, USD/TRY, EUR/TRY, Altın)"""
+    session = _get_yahoo_session()
+    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
+    out = []
+    for item in INDICES:
+        try:
+            r = session.get(
+                f"https://query1.finance.yahoo.com/v8/finance/chart/{item['key']}?interval=1d&range=2d",
+                headers=headers,
+                timeout=8,
+            )
+            if r.status_code != 200:
+                raise ValueError(f"HTTP {r.status_code}")
+            data = r.json()
+            meta = data["chart"]["result"][0]["meta"]
+            cp = float(meta.get("regularMarketPrice") or 0)
+            pp = float(meta.get("chartPreviousClose") or cp)
+            if cp <= 0:
+                raise ValueError("fiyat yok")
+            ch = ((cp - pp) / pp * 100) if pp else 0.0
+            out.append({
+                "label": item["label"],
+                "suffix": item["suffix"],
+                "price": round(cp, 4),
+                "change_percent": round(ch, 4),
+            })
+        except Exception as e:
+            print(f"Endeks hatası {item['key']}: {e}")
+    return out
+
+
 @router.get("/bist30")
 def get_bist30():
     """Yahoo Finance'den BIST30 güncel fiyatlarını çek, hata olursa CSV'ye düş"""

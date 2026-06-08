@@ -16,6 +16,8 @@ class MarketScreen extends StatefulWidget {
   State<MarketScreen> createState() => _MarketScreenState();
 }
 
+enum _SortMode { none, priceAsc, priceDesc, changeAsc, changeDesc, nameAsc }
+
 class _MarketScreenState extends State<MarketScreen> {
   bool isLoading = true;
   List<dynamic> stocks = [];
@@ -23,16 +25,105 @@ class _MarketScreenState extends State<MarketScreen> {
   List<String> favoriteSymbols = [];
   String? errorMessage;
   final TextEditingController searchController = TextEditingController();
+  _SortMode _sortMode = _SortMode.none;
 
   void _onSearchChanged(String query) {
     final q = query.toLowerCase().trim();
+    final filtered = stocks.where((s) {
+      final symbol = (s['symbol'] ?? '').toString().toLowerCase();
+      final name = (s['name'] ?? '').toString().toLowerCase();
+      return symbol.contains(q) || name.contains(q);
+    }).toList();
     setState(() {
-      filteredStocks = stocks.where((s) {
-        final symbol = (s['symbol'] ?? '').toString().toLowerCase();
-        final name = (s['name'] ?? '').toString().toLowerCase();
-        return symbol.contains(q) || name.contains(q);
-      }).toList();
+      filteredStocks = _applySortTo(filtered);
     });
+  }
+
+  List<dynamic> _applySortTo(List<dynamic> list) {
+    final sorted = [...list];
+    switch (_sortMode) {
+      case _SortMode.priceAsc:
+        sorted.sort((a, b) => ((a['price'] as num?) ?? 0).compareTo((b['price'] as num?) ?? 0));
+        break;
+      case _SortMode.priceDesc:
+        sorted.sort((a, b) => ((b['price'] as num?) ?? 0).compareTo((a['price'] as num?) ?? 0));
+        break;
+      case _SortMode.changeAsc:
+        sorted.sort((a, b) => ((a['change_percent'] as num?) ?? 0).compareTo((b['change_percent'] as num?) ?? 0));
+        break;
+      case _SortMode.changeDesc:
+        sorted.sort((a, b) => ((b['change_percent'] as num?) ?? 0).compareTo((a['change_percent'] as num?) ?? 0));
+        break;
+      case _SortMode.nameAsc:
+        sorted.sort((a, b) => (a['symbol'] ?? '').toString().compareTo((b['symbol'] ?? '').toString()));
+        break;
+      case _SortMode.none:
+        break;
+    }
+    return sorted;
+  }
+
+  void _applySort(_SortMode mode) {
+    setState(() {
+      _sortMode = mode;
+      filteredStocks = _applySortTo(filteredStocks);
+    });
+  }
+
+  void _showSortSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Sıralama', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              _sortTile(ctx, _SortMode.none,       Icons.sort,              'Varsayılan'),
+              _sortTile(ctx, _SortMode.changeDesc,  Icons.trending_up,       'En Çok Yükselenler'),
+              _sortTile(ctx, _SortMode.changeAsc,   Icons.trending_down,     'En Çok Düşenler'),
+              _sortTile(ctx, _SortMode.priceDesc,   Icons.arrow_upward,      'Fiyat: Yüksekten Düşüğe'),
+              _sortTile(ctx, _SortMode.priceAsc,    Icons.arrow_downward,    'Fiyat: Düşükten Yükseğe'),
+              _sortTile(ctx, _SortMode.nameAsc,     Icons.sort_by_alpha,     'Alfabetik (A→Z)'),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _sortTile(BuildContext ctx, _SortMode mode, IconData icon, String label) {
+    final selected = _sortMode == mode;
+    return ListTile(
+      leading: Icon(icon, color: selected ? AppColors.primary : null),
+      title: Text(label, style: TextStyle(
+        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+        color: selected ? AppColors.primary : null,
+      )),
+      trailing: selected ? const Icon(Icons.check, color: AppColors.primary) : null,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      tileColor: selected ? AppColors.primary.withValues(alpha: 0.08) : null,
+      onTap: () {
+        Navigator.pop(ctx);
+        _applySort(mode);
+      },
+    );
   }
 
   @override
@@ -62,7 +153,7 @@ class _MarketScreenState extends State<MarketScreen> {
         if (data is List) {
           setState(() {
             stocks = data;
-            filteredStocks = data;
+            filteredStocks = _applySortTo(List.from(data));
             isLoading = false;
           });
         } else {
@@ -200,29 +291,52 @@ class _MarketScreenState extends State<MarketScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                  child: TextField(
-                    controller: searchController,
-                    onChanged: _onSearchChanged,
-                    decoration: InputDecoration(
-                      hintText: 'Hisse veya şirket ara...',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                searchController.clear();
-                                _onSearchChanged('');
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: searchController,
+                          onChanged: _onSearchChanged,
+                          decoration: InputDecoration(
+                            hintText: 'Hisse veya şirket ara...',
+                            prefixIcon: const Icon(Icons.search),
+                            suffixIcon: searchController.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear),
+                                    onPressed: () {
+                                      searchController.clear();
+                                      _onSearchChanged('');
+                                    },
+                                  )
+                                : null,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            filled: true,
+                            fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                          ),
+                        ),
                       ),
-                      filled: true,
-                      fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    ),
+                      const SizedBox(width: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: _sortMode != _SortMode.none
+                              ? AppColors.primary.withValues(alpha: 0.15)
+                              : Theme.of(context).colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.sort,
+                            color: _sortMode != _SortMode.none ? AppColors.primary : null,
+                          ),
+                          tooltip: 'Sırala',
+                          onPressed: _showSortSheet,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 if (filteredStocks.isEmpty)
